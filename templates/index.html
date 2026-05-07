@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PSL Recognition — Pakistani Sign Language</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0c10;
+      --surface:   #111318;
+      --panel:     #16191f;
+      --border:    #252830;
+      --accent:    #00e5a0;
+      --accent2:   #ff6b35;
+      --blue:      #4a9eff;
+      --text:      #e8eaf0;
+      --muted:     #6b7280;
+      --success:   #22c55e;
+      --radius:    14px;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      overflow-x: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .logo {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .logo-icon {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--accent), var(--blue));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .logo-text { font-weight: 800; font-size: 1.2rem; letter-spacing: -0.5px; }
+    .logo-text span { color: var(--accent); }
+
+    .status-pill {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 14px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      font-size: 0.8rem; font-weight: 600;
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+    .status-dot.active { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+    /* ── Main layout ── */
+    main {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 20px;
+      padding: 20px 32px;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      align-items: start;
+    }
+
+    /* ── Camera panel ── */
+    .camera-panel {
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .camera-wrap {
+      position: relative;
+      background: #000;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      aspect-ratio: 4/3;
+    }
+    #video { display: none; }
+    #canvas {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .camera-overlay {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px;
+      background: rgba(0,0,0,0.7);
+    }
+    .camera-overlay.hidden { display: none; }
+    .cam-start-btn {
+      padding: 14px 32px;
+      background: var(--accent);
+      color: #000;
+      border: none; border-radius: 10px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 1rem; font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .cam-start-btn:hover { transform: scale(1.04); box-shadow: 0 0 24px rgba(0,229,160,0.4); }
+
+    /* Prediction overlay on camera */
+    .pred-overlay {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 14px 20px;
+      background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+      display: flex; align-items: flex-end; justify-content: space-between;
+    }
+    .pred-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2.2rem; font-weight: 600;
+      color: var(--accent);
+      text-shadow: 0 0 20px rgba(0,229,160,0.6);
+      min-height: 50px;
+      transition: opacity 0.2s;
+    }
+    .pred-badge.empty { color: var(--muted); font-size: 1rem; font-weight: 400; }
+
+    .hand-count {
+      padding: 6px 12px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 8px;
+      font-size: 0.8rem; font-weight: 600;
+    }
+
+    /* Motion progress bar */
+    .motion-bar-wrap {
+      position: absolute; top: 12px; right: 12px;
+      display: none;
+    }
+    .motion-bar-wrap.visible { display: block; }
+    .motion-bar-label { font-size: 0.65rem; color: var(--muted); margin-bottom: 4px; text-align: right; }
+    .motion-bar-track {
+      width: 100px; height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px; overflow: hidden;
+    }
+    .motion-bar-fill {
+      height: 100%; border-radius: 3px;
+      background: var(--accent2);
+      transition: width 0.1s;
+    }
+
+    /* Mode badge */
+    .mode-badge {
+      position: absolute; top: 12px; left: 12px;
+      padding: 5px 12px;
+      border-radius: 8px; font-size: 0.75rem; font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .mode-badge.static { background: rgba(74,158,255,0.25); color: var(--blue); border: 1px solid rgba(74,158,255,0.3); }
+    .mode-badge.motion { background: rgba(255,107,53,0.25); color: var(--accent2); border: 1px solid rgba(255,107,53,0.3); }
+
+    /* ── Controls bar ── */
+    .controls-bar {
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .ctrl-btn {
+      flex: 1; min-width: 100px;
+      padding: 12px 16px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.85rem; font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .ctrl-btn:hover { background: var(--surface); border-color: var(--accent); }
+    .ctrl-btn:active { transform: scale(0.97); }
+    .ctrl-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+    .ctrl-btn.primary:hover { background: #00c887; }
+    .ctrl-btn.danger { border-color: #ef4444; color: #ef4444; }
+    .ctrl-btn.danger:hover { background: rgba(239,68,68,0.1); }
+
+    /* ── Right panel ── */
+    .right-panel { display: flex; flex-direction: column; gap: 16px; }
+
+    .panel-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .card-title {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* Mode switcher */
+    .mode-switch {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    }
+    .mode-opt {
+      padding: 14px 10px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .mode-opt .mode-icon { font-size: 1.5rem; }
+    .mode-opt .mode-name { font-size: 0.85rem; font-weight: 700; margin-top: 4px; }
+    .mode-opt .mode-desc { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+    .mode-opt.active.static-opt { border-color: var(--blue); background: rgba(74,158,255,0.1); }
+    .mode-opt.active.motion-opt { border-color: var(--accent2); background: rgba(255,107,53,0.1); }
+    .mode-opt:hover:not(.active) { border-color: var(--muted); }
+
+    /* Sentence box */
+    .sentence-box {
+      min-height: 80px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.1rem; font-weight: 600;
+      line-height: 1.6;
+      word-break: break-word;
+      color: var(--text);
+    }
+    .sentence-box .word-chip {
+      display: inline-block;
+      margin: 2px 3px;
+      padding: 2px 10px;
+      background: rgba(0,229,160,0.1);
+      border: 1px solid rgba(0,229,160,0.25);
+      border-radius: 6px;
+      color: var(--accent);
+      animation: chipIn 0.2s ease-out;
+    }
+    @keyframes chipIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .sentence-placeholder { color: var(--muted); font-size: 0.85rem; font-weight: 400; font-family: 'Outfit', sans-serif; }
+
+    .sentence-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .sentence-actions .ctrl-btn { flex: none; min-width: unset; }
+
+    /* Stats */
+    .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { font-size: 0.8rem; color: var(--muted); }
+    .stat-value { font-size: 0.85rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+    .stat-value.ok { color: var(--success); }
+    .stat-value.err { color: #ef4444; }
+
+    /* Signs reference */
+    .signs-grid {
+      display: flex; flex-wrap: wrap; gap: 6px;
+    }
+    .sign-chip {
+      padding: 3px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.72rem; font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--muted);
+    }
+
+    /* ── Footer ── */
+    footer {
+      padding: 14px 32px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    .kbd {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%) translateY(20px);
+      padding: 10px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.85rem; font-weight: 600;
+      opacity: 0; transition: all 0.3s;
+      pointer-events: none; white-space: nowrap; z-index: 100;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; padding: 12px 16px; }
+      header, footer { padding: 14px 16px; }
+      .controls-bar .ctrl-btn { min-width: 80px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon"><img src="logo.png" alt=""></div>
+    <div>
+      <div class="logo-text">PSL <span>Recognition</span></div>
+      <div style="font-size:0.7rem;color:var(--muted);margin-top:1px;">Pakistani Sign Language · Real-time AI</div>
+    </div>
+  </div>
+  <div class="status-pill">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Initializing…</span>
+  </div>
+</header>
+
+<!-- ── Main ── -->
+<main>
+
+  <!-- Camera -->
+  <div class="camera-panel">
+    <div class="camera-wrap">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="canvas"></canvas>
+
+      <!-- Overlay before camera starts -->
+      <div class="camera-overlay" id="cameraOverlay">
+        <div style="font-size:3rem">📷</div>
+        <div style="font-size:1.1rem;font-weight:600;color:var(--text)">Camera is off</div>
+        <div style="font-size:0.85rem;color:var(--muted);margin-bottom:4px">Allow webcam access to begin</div>
+        <button class="cam-start-btn" onclick="startCamera()">Start Camera</button>
+      </div>
+
+      <!-- Mode badge -->
+      <div class="mode-badge static" id="modeBadge">STATIC</div>
+
+      <!-- Motion progress -->
+      <div class="motion-bar-wrap" id="motionBarWrap">
+        <div class="motion-bar-label" id="motionBarLabel">0 / 30</div>
+        <div class="motion-bar-track">
+          <div class="motion-bar-fill" id="motionBarFill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Prediction overlay -->
+      <div class="pred-overlay">
+        <div class="pred-badge empty" id="predBadge">Show a sign…</div>
+        <div class="hand-count" id="handCount">👋 0 hands</div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-bar">
+      <button class="ctrl-btn primary" onclick="addSign()" title="SPACE">➕ Add Sign</button>
+      <button class="ctrl-btn" onclick="removeLast()" title="Backspace">Remove</button>
+      <button class="ctrl-btn danger" onclick="clearSentence()">Clear</button>
+      <button class="ctrl-btn" onclick="saveSentence()">💾 Save</button>
+    </div>
+  </div>
+
+  <!-- Right panel -->
+  <div class="right-panel">
+
+    <!-- Mode switcher -->
+    <div class="panel-card">
+      <div class="card-title">Recognition Mode</div>
+      <div class="mode-switch">
+        <div class="mode-opt static-opt active" id="modeStatic" onclick="setMode('static')">
+          <div class="mode-icon">🅰️</div>
+          <div class="mode-name">Static</div>
+          <div class="mode-desc">Alphabets & words</div>
+        </div>
+        <div class="mode-opt motion-opt" id="modeMotion" onclick="setMode('motion')">
+          <div class="mode-icon">🎬</div>
+          <div class="mode-name">Motion</div>
+          <div class="mode-desc">Gestures & signs</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sentence -->
+    <div class="panel-card">
+      <div class="card-title">Current Sentence</div>
+      <div class="sentence-box" id="sentenceBox">
+        <span class="sentence-placeholder">Add signs to build a sentence…</span>
+      </div>
+      <div class="sentence-actions">
+        <button class="ctrl-btn" onclick="removeLast()">Undo</button>
+        <button class="ctrl-btn danger" onclick="clearSentence()">Clear</button>
+      </div>
+    </div>
+
+    <!-- Model status -->
+    <div class="panel-card">
+      <div class="card-title">Model Status</div>
+      <div id="modelStatus">
+        <div class="stat-row"><span class="stat-label">Alphabet (RF)</span><span class="stat-value" id="m-alphabet">Checking…</span></div>
+        <div class="stat-row"><span class="stat-label">Static Words (RF)</span><span class="stat-value" id="m-words">Checking…</span></div>
+        <div class="stat-row"><span class="stat-label">Motion 1-Hand (LSTM)</span><span class="stat-value" id="m-motion1">Checking…</span></div>
+        <div class="stat-row"><span class="stat-label">Motion 2-Hand (LSTM)</span><span class="stat-value" id="m-motion2">Checking…</span></div>
+      </div>
+    </div>
+
+    <!-- Signs reference -->
+    <div class="panel-card">
+      <div class="card-title">Supported Signs (62 total)</div>
+      <div class="signs-grid" id="signsGrid">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <div>PSL Recognition System · 2025</div>
+  <div style="display:flex;gap:12px;align-items:center;">
+    <span><span class="kbd">SPACE</span> Add sign</span>
+    <span><span class="kbd">1</span> Static</span>
+    <span><span class="kbd">2</span> Motion</span>
+    <span><span class="kbd">C</span> Clear</span>
+  </div>
+</footer>
+
+<div id="toast"></div>
+
+<script>
+  // ── Signs reference ──────────────────────────────────────────────────────
+  const ALPHA = ['ا', 'ب', 'پ', 'ت', 'ٹ', 'ث', 'ج', 'چ', 'ح', 'خ', 'د', 'ڈ', 'ذ', 'ر', 'ڑ', 'ز', 'ژ', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ک', 'گ', 'ل', 'م', 'ن', 'و', 'ہ', 'ی', 'ے'];
+  const WORDS = ['mai','aik','hoon','tum','yeh','woh','kya','hai','nahi','acha','theek','shukriya','salaam','khuda hafiz','Allah','Pakistan'];
+  const GESTURES = ['larki', 'maa', 'abbu', 'hello', 'bye', 'please', 'sorry'];
+  const ALL_SIGNS = [...ALPHA, ...WORDS, ...GESTURES];
+
+  const grid = document.getElementById('signsGrid');
+  ALL_SIGNS.forEach(s => {
+    const c = document.createElement('div');
+    c.className = 'sign-chip';
+    c.textContent = s;
+    grid.appendChild(c);
+  });
+
+  // ── State ────────────────────────────────────────────────────────────────
+  let currentMode = 'static';
+  let processingFrame = false;
+  let cameraActive = false;
+  let sentence = [];
+
+  const video   = document.getElementById('video');
+  const canvas  = document.getElementById('canvas');
+  const ctx     = canvas.getContext('2d');
+
+  // ── Camera ───────────────────────────────────────────────────────────────
+  async function startCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      video.srcObject = stream;
+      await video.play();
+      cameraActive = true;
+      document.getElementById('cameraOverlay').classList.add('hidden');
+      document.getElementById('statusDot').classList.add('active');
+      document.getElementById('statusText').textContent = 'Camera Active';
+      checkModelStatus();
+      requestAnimationFrame(processLoop);
+    } catch (err) {
+      showToast('Camera access denied: ' + err.message);
+    }
+  }
+
+  // HAND_CONNECTIONS from MediaPipe
+  const CONNECTIONS = [
+    [0,1],[1,2],[2,3],[3,4],
+    [0,5],[5,6],[6,7],[7,8],
+    [0,9],[9,10],[10,11],[11,12],
+    [0,13],[13,14],[14,15],[15,16],
+    [0,17],[17,18],[18,19],[19,20],
+    [5,9],[9,13],[13,17]
+  ];
+
+  const HAND_COLORS = ['#00e5a0', '#4a9eff'];
+
+  function drawHands(landmarks, cw, ch) {
+    landmarks.forEach((hand, hi) => {
+      const color = HAND_COLORS[hi] || '#fff';
+      // Connections
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.7;
+      CONNECTIONS.forEach(([a, b]) => {
+        ctx.beginPath();
+        ctx.moveTo(hand[a].x * cw, hand[a].y * ch);
+        ctx.lineTo(hand[b].x * cw, hand[b].y * ch);
+        ctx.stroke();
+      });
+      // Dots
+      hand.forEach(lm => {
+        ctx.beginPath();
+        ctx.arc(lm.x * cw, lm.y * ch, 4, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 1;
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  // ── Main loop ─────────────────────────────────────────────────────────────
+  let lastFrameTime = 0;
+  const FRAME_INTERVAL = 80; // ~12 fps to avoid overwhelming Flask
+
+  async function processLoop(now) {
+    if (!cameraActive) return;
+    requestAnimationFrame(processLoop);
+
+    if (now - lastFrameTime < FRAME_INTERVAL) return;
+    lastFrameTime = now;
+
+    // Draw video frame to canvas
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    if (processingFrame) return;
+    processingFrame = true;
+
+    try {
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      const res = await fetch('/api/process_frame', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: dataUrl })
+      });
+
+      if (!res.ok) throw new Error('Server error');
+      const data = await res.json();
+
+      // Draw landmarks on top
+      if (data.hand_landmarks && data.hand_landmarks.length > 0) {
+        drawHands(data.hand_landmarks, canvas.width, canvas.height);
+      }
+
+      // Update prediction
+      const pred = data.prediction;
+      const predEl = document.getElementById('predBadge');
+      if (pred) {
+        predEl.textContent = pred;
+        predEl.className = 'pred-badge';
+      } else {
+        const hint = currentMode === 'static' ? 'Show a sign…' : 'Perform gesture…';
+        predEl.textContent = hint;
+        predEl.className = 'pred-badge empty';
+      }
+
+      // Hand count
+      const hc = data.num_hands;
+      document.getElementById('handCount').textContent = `👋 ${hc} hand${hc !== 1 ? 's' : ''}`;
+
+      // Motion bar
+      if (currentMode === 'motion') {
+        const fill = Math.min(100, (data.motion_buffer_size / data.motion_frames_needed) * 100);
+        document.getElementById('motionBarFill').style.width = fill + '%';
+        document.getElementById('motionBarLabel').textContent = `${data.motion_buffer_size} / ${data.motion_frames_needed}`;
+        document.getElementById('motionBarWrap').classList.add('visible');
+      } else {
+        document.getElementById('motionBarWrap').classList.remove('visible');
+      }
+
+      // Sync sentence
+      if (JSON.stringify(data.sentence) !== JSON.stringify(sentence)) {
+        sentence = data.sentence;
+        renderSentence();
+      }
+
+    } catch (e) {
+      // silently continue
+    } finally {
+      processingFrame = false;
+    }
+  }
+
+  // ── Sentence rendering ────────────────────────────────────────────────────
+  function renderSentence() {
+    const box = document.getElementById('sentenceBox');
+    if (sentence.length === 0) {
+      box.innerHTML = '<span class="sentence-placeholder">Add signs to build a sentence…</span>';
+    } else {
+      box.innerHTML = sentence.map(w => `<span class="word-chip">${w}</span>`).join(' ');
+    }
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+  async function setMode(mode) {
+    currentMode = mode;
+    await fetch('/api/set_mode', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode })
+    });
+    document.getElementById('modeStatic').classList.toggle('active', mode === 'static');
+    document.getElementById('modeMotion').classList.toggle('active', mode === 'motion');
+    const badge = document.getElementById('modeBadge');
+    badge.textContent = mode.toUpperCase();
+    badge.className = `mode-badge ${mode}`;
+    showToast(mode === 'static' ? '🅰️ Static mode — alphabets & words' : '🎬 Motion mode — gestures');
+  }
+
+  async function addSign() {
+    const res = await fetch('/api/add_sign', { method: 'POST' });
+    const data = await res.json();
+    sentence = data.sentence;
+    renderSentence();
+    if (data.added) showToast(`Added: "${data.added}"`);
+    else showToast('No stable sign detected yet');
+  }
+
+  async function removeLast() {
+    const res = await fetch('/api/remove_last', { method: 'POST' });
+    const data = await res.json();
+    sentence = data.sentence;
+    renderSentence();
+    if (data.removed) showToast(`Removed: "${data.removed}"`);
+  }
+
+  async function clearSentence() {
+    const res = await fetch('/api/clear_sentence', { method: 'POST' });
+    sentence = [];
+    renderSentence();
+    showToast('Sentence cleared');
+  }
+
+  async function saveSentence() {
+    const res = await fetch('/api/save_sentence', { method: 'POST' });
+    const data = await res.json();
+    if (data.saved) {
+      sentence = [];
+      renderSentence();
+      showToast(`💾 Saved: "${data.saved}"`);
+    } else {
+      showToast('Nothing to save');
+    }
+  }
+
+  // ── Model status ──────────────────────────────────────────────────────────
+  async function checkModelStatus() {
+    try {
+      const res = await fetch('/api/status');
+      const data = await res.json();
+      const m = data.models;
+      const set = (id, ok) => {
+        const el = document.getElementById(id);
+        el.textContent = ok ? '✓ Loaded' : '✗ Not found';
+        el.className = 'stat-value ' + (ok ? 'ok' : 'err');
+      };
+      set('m-alphabet', m.alphabet);
+      set('m-words',    m.static_words);
+      set('m-motion1',  m.motion_1hand);
+      set('m-motion2',  m.motion_2hand);
+    } catch {}
+  }
+
+  // ── Toast ─────────────────────────────────────────────────────────────────
+  let toastTimer;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.key === ' ')          { e.preventDefault(); addSign(); }
+    else if (e.key === 'Backspace') removeLast();
+    else if (e.key === '1')     setMode('static');
+    else if (e.key === '2')     setMode('motion');
+    else if (e.key === 'c' || e.key === 'C') clearSentence();
+    else if (e.key === 's' || e.key === 'S') saveSentence();
+  });
+
+  // Auto-start status check
+  checkModelStatus();
+</script>
+</body>
+</html>
