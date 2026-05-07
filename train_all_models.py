@@ -17,7 +17,7 @@ print("📝 TRAINING ALPHABET MODEL (37 letters)")
 print("=" * 70)
 
 try:
-    with open('sign_language_dataset.pkl', 'rb') as f:
+    with open('datasets/sign_language_dataset.pkl', 'rb') as f:
         data = pickle.load(f)
     
     X = np.array(data['data'])
@@ -64,32 +64,28 @@ print("\n" + "=" * 70)
 print("📄 TRAINING STATIC WORDS MODEL")
 print("=" * 70)
 
-# Merge old and new static words
 static_X = []
 static_y = []
 
 try:
-    # Load old static words
-    if os.path.exists('word_dataset.pkl'):
-        with open('word_dataset.pkl', 'rb') as f:
+    if os.path.exists('datasets/word_dataset.pkl'):
+        with open('datasets/word_dataset.pkl', 'rb') as f:
             data = pickle.load(f)
         if 'data' in data:
             static_X.extend(data['data'])
             static_y.extend(data['labels'])
             print(f"✓ Loaded old static words: {len(data['data'])} samples")
     
-    # Load new static words
-    if os.path.exists('complete_word_dataset.pkl'):
-        with open('complete_word_dataset.pkl', 'rb') as f:
+    if os.path.exists('datasets/complete_word_dataset.pkl'):
+        with open('datasets/complete_word_dataset.pkl', 'rb') as f:
             data = pickle.load(f)
         if 'data' in data:
             static_X.extend(data['data'])
             static_y.extend(data['labels'])
             print(f"✓ Loaded new static words: {len(data['data'])} samples")
     
-    # Also check word_collection_progress.pkl
-    if os.path.exists('word_collection_progress.pkl'):
-        with open('word_collection_progress.pkl', 'rb') as f:
+    if os.path.exists('datasets/word_collection_progress.pkl'):
+        with open('datasets/word_collection_progress.pkl', 'rb') as f:
             data = pickle.load(f)
         if 'data' in data and len(data['data']) > 0:
             static_X.extend(data['data'])
@@ -145,7 +141,7 @@ print("🎬 TRAINING ONE-HANDED MOTION MODEL (LSTM)")
 print("=" * 70)
 
 try:
-    with open('motion_dataset.pkl', 'rb') as f:
+    with open('datasets/motion_dataset.pkl', 'rb') as f:
         data = pickle.load(f)
     
     X = data['sequences']
@@ -154,7 +150,6 @@ try:
     print(f"✓ Loaded: {len(X)} sequences, {len(set(y))} classes")
     print(f"  Classes: {sorted(set(y))}")
     
-    # Encode labels
     label_encoder = LabelEncoder()
     y_encoded = label_encoder.fit_transform(y)
     
@@ -221,7 +216,7 @@ print("🤝 TRAINING TWO-HANDED MOTION MODEL (LSTM)")
 print("=" * 70)
 
 try:
-    with open('two_handed_motion_dataset.pkl', 'rb') as f:
+    with open('datasets/two_handed_motion_dataset.pkl', 'rb') as f:
         data = pickle.load(f)
     
     X = data['sequences']
@@ -230,7 +225,6 @@ try:
     print(f"✓ Loaded: {len(X)} sequences, {len(set(y))} classes")
     print(f"  Classes: {sorted(set(y))}")
     
-    # Encode labels
     label_encoder = LabelEncoder()
     y_encoded = label_encoder.fit_transform(y)
     
@@ -306,9 +300,8 @@ for name, info in models_trained.items():
 print("\n" + "=" * 70)
 print("✅ ALL MODELS TRAINED!")
 print("=" * 70)
-print("\nNext: python create_master_system.py")
+print("\nNext: python app.py")
 print("=" * 70)
 
-# Save model info
 with open('models_info.pkl', 'wb') as f:
     pickle.dump(models_trained, f)
