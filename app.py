@@ -51,10 +51,8 @@ def load_models():
 
 
 # ── MediaPipe ──────────────────────────────────────────────────────────────────
-from mediapipe.tasks import python as mp_python
-from mediapipe.tasks.python import vision
-from mediapipe.python.solutions import hands as mp_hands
-from mediapipe.python.solutions import drawing_utils as mp_drawing
+import mediapipe.solutions.hands as mp_hands
+import mediapipe.solutions.drawing_utils as mp_drawing
 
 hands_detector = mp_hands.Hands(
     static_image_mode=False,
@@ -62,7 +60,6 @@ hands_detector = mp_hands.Hands(
     min_detection_confidence=0.7,
     min_tracking_confidence=0.7
 )
-
 # ── State ──────────────────────────────────────────────────────────────────────
 state = {
     'mode': 'static',
