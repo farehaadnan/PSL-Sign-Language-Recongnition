@@ -533,7 +533,7 @@
 
   // ── Main loop ─────────────────────────────────────────────────────────────
   let lastFrameTime = 0;
-  const FRAME_INTERVAL = 80; // ~12 fps to avoid overwhelming Flask
+  const FRAME_INTERVAL = 300; // ~12 fps to avoid overwhelming Flask
 
   async function processLoop(now) {
     if (!cameraActive) return;
