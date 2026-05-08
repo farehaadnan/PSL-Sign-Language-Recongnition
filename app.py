@@ -32,8 +32,10 @@ def load_models():
         print(f"✗ Static words model: {e}")
 
     try:
+        import tensorflow as tf
+        tf.config.set_visible_devices([], 'GPU')
         from tensorflow.keras.models import load_model
-        models['motion_1hand'] = load_model('motion_1hand_model.h5')
+        models['motion_1hand'] = load_model('motion_1hand_model.h5', compile=False)
         models['motion_1hand_labels'] = pickle.load(open('motion_1hand_labels.pkl', 'rb'))
         print("✓ Motion 1-hand model loaded")
     except Exception as e:
@@ -41,14 +43,15 @@ def load_models():
         print(f"✗ Motion 1-hand model: {e}")
 
     try:
+        import tensorflow as tf
+        tf.config.set_visible_devices([], 'GPU')
         from tensorflow.keras.models import load_model
-        models['motion_2hand'] = load_model('motion_2hand_model.h5')
+        models['motion_2hand'] = load_model('motion_2hand_model.h5', compile=False)
         models['motion_2hand_labels'] = pickle.load(open('motion_2hand_labels.pkl', 'rb'))
         print("✓ Motion 2-hand model loaded")
     except Exception as e:
         models['motion_2hand'] = None
         print(f"✗ Motion 2-hand model: {e}")
-
 
 # ── MediaPipe ──────────────────────────────────────────────────────────────────
 mp_hands = mp.solutions.hands
