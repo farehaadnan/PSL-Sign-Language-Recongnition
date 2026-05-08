@@ -37,8 +37,6 @@ python fast_system.py
 - OpenCV
 - Scikit-learn
 
-## Authors
-Fareha & Rameen - 2025
 
 ## License
 MIT License
