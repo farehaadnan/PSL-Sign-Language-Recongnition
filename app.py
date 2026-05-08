@@ -51,8 +51,9 @@ def load_models():
 
 
 # ── MediaPipe ──────────────────────────────────────────────────────────────────
-import mediapipe.solutions.hands as mp_hands
-import mediapipe.solutions.drawing_utils as mp_drawing
+from mediapipe import solutions
+mp_hands = solutions.hands
+mp_drawing = solutions.drawing_utils
 
 hands_detector = mp_hands.Hands(
     static_image_mode=False,
